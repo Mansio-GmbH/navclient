@@ -4,7 +4,7 @@ This is a client for using Mansio Navigator
 ## Usage
 Just import package and create client
 ```go
-import "github.com/mansio/navclient"
+import "github.com/mansio-gmbh/navclient"
 
 func main() {
     client := navclient.NewClient("https://navigator",token,timeout)
