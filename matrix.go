@@ -44,13 +44,13 @@ func (c *Client) MatrixByCoordinates(ctx context.Context, coordinates []ct.Coord
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return TimeDistanceMatrix{}, err
+		return TimeDistanceMatrix{}, errors.WithStack(err)
 	}
 
 	var resp TimeDistanceMatrix
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	if err = json.Unmarshal(body, &resp); err != nil {
-		return TimeDistanceMatrix{}, err
+		return TimeDistanceMatrix{}, errors.WithStack(err)
 	}
 
 	return resp, nil
@@ -78,13 +78,13 @@ func (c *Client) MatrixByLocations(ctx context.Context, locations []ct.Location)
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return TimeDistanceLocationMatrix{}, err
+		return TimeDistanceLocationMatrix{}, errors.WithStack(err)
 	}
 
 	var resp TimeDistanceLocationMatrix
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	if err = json.Unmarshal(body, &resp); err != nil {
-		return TimeDistanceLocationMatrix{}, err
+		return TimeDistanceLocationMatrix{}, errors.WithStack(err)
 	}
 
 	resp.Locations = locations

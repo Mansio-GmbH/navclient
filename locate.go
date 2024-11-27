@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/mansio-gmbh/goapiutils/ct"
+	"github.com/pkg/errors"
 	"io"
 	"net/http"
 )
@@ -35,12 +36,12 @@ func (c *Client) Locate(ctx context.Context, locations []ct.Location) ([]ct.Loca
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.WithStack(err)
 	}
 
 	var resp locateResponse
 	if err = json.Unmarshal(body, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, errors.WithStack(err)
 	}
 
 	return resp.Locations, resp.Problems, nil

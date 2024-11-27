@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/mansio-gmbh/goapiutils/ct"
+	"github.com/pkg/errors"
 	"io"
 	"net/http"
 )
@@ -38,12 +39,12 @@ func (c *Client) Route(ctx context.Context, coordinateChains LocationChains) (Ch
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	var resp routeResponse
 	if err = json.Unmarshal(body, &resp); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return resp.Routes, nil

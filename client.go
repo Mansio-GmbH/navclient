@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/json-iterator/go"
+	"github.com/pkg/errors"
 	"net/http"
 	"time"
 )
@@ -30,13 +31,13 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, params any
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	payload := bytes.NewReader(jsonBytes)
 	req, err := http.NewRequestWithContext(ctx, method, baseURL, payload)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "ApiKey "+c.token)
@@ -45,7 +46,12 @@ func (c *Client) doJSON(ctx context.Context, method, endpoint string, params any
 		Timeout: c.timeout,
 	}
 
-	return httpClient.Do(req)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return resp, nil
 }
 
 func (c *Client) TestConnection(ctx context.Context) error {
