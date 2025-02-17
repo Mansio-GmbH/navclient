@@ -34,6 +34,11 @@ func (c *Client) Locate(ctx context.Context, locations []ct.Location) ([]ct.Loca
 		return nil, nil, err
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, nil, errors.WithStack(err)
