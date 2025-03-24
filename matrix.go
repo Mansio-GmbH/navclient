@@ -2,19 +2,30 @@ package navclient
 
 import (
 	"context"
+	"io"
+	"net/http"
+
 	"github.com/json-iterator/go"
 	"github.com/mansio-gmbh/goapiutils/ct"
 	"github.com/pkg/errors"
-	"io"
-	"net/http"
 )
 
-const (
-	matrixURL = "api/matrix"
-)
+const matrixURL = "api/matrix"
+
+// CacheNone is the type for not using the cache
+const CacheNone = "none"
+
+// CacheReal is the type of cache that is used to store the matrix
+// this is only for real Addresses needed for depots or handovers
+const CacheReal = "real"
+
+// CacheSimple is the type for using the simple cache
+// this is only for simple Addresses postal+country+city
+const CacheSimple = "simple"
 
 type matrixRequest struct {
 	Coordinates []ct.Coordinates `json:"coordinates"`
+	CacheType   string           `json:"cache_type"`
 }
 
 type TimeDistanceMatrix struct {
@@ -32,9 +43,13 @@ type TimeDistanceLocationMatrix struct {
 }
 
 // MatrixByCoordinates returns a TimeDistanceMatrix for the given coordinates.
-func (c *Client) MatrixByCoordinates(ctx context.Context, coordinates []ct.Coordinates) (TimeDistanceMatrix, error) {
+func (c *Client) MatrixByCoordinates(ctx context.Context, cacheType string, coordinates []ct.Coordinates) (TimeDistanceMatrix, error) {
+	if cacheType != CacheNone && cacheType != CacheReal && cacheType != CacheSimple {
+		return TimeDistanceMatrix{}, errors.Errorf("cache type %s is not supported", cacheType)
+	}
 	request := matrixRequest{
 		Coordinates: coordinates,
+		CacheType:   cacheType,
 	}
 
 	res, err := c.doJSON(ctx, http.MethodPost, matrixURL, request)
@@ -57,7 +72,11 @@ func (c *Client) MatrixByCoordinates(ctx context.Context, coordinates []ct.Coord
 }
 
 // MatrixByLocations returns a TimeDistanceLocationMatrix for the given locations.
-func (c *Client) MatrixByLocations(ctx context.Context, locations []ct.Location) (TimeDistanceLocationMatrix, error) {
+func (c *Client) MatrixByLocations(ctx context.Context, cacheType string, locations []ct.Location) (TimeDistanceLocationMatrix, error) {
+	if cacheType != CacheNone && cacheType != CacheReal && cacheType != CacheSimple {
+		return TimeDistanceLocationMatrix{}, errors.Errorf("cache type %s is not supported", cacheType)
+	}
+
 	var coordinates []ct.Coordinates
 	for idx := range locations {
 		if locations[idx].Coordinates == nil {
@@ -68,6 +87,7 @@ func (c *Client) MatrixByLocations(ctx context.Context, locations []ct.Location)
 
 	request := matrixRequest{
 		Coordinates: coordinates,
+		CacheType:   cacheType,
 	}
 
 	res, err := c.doJSON(ctx, http.MethodPost, matrixURL, request)
