@@ -2,7 +2,10 @@ package navclient
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
+	"math"
 	"net/http"
 
 	"github.com/json-iterator/go"
@@ -43,7 +46,7 @@ type TimeDistanceLocationMatrix struct {
 }
 
 // MatrixByCoordinates returns a TimeDistanceMatrix for the given coordinates.
-func (c *Client) MatrixByCoordinates(ctx context.Context, cacheType string, coordinates []ct.Coordinates) (TimeDistanceMatrix, error) {
+func (c *Client) MatrixByCoordinates(ctx context.Context, cacheType string, coordinates []ct.Coordinates, withFallback bool) (TimeDistanceMatrix, error) {
 	if cacheType != CacheNone && cacheType != CacheReal && cacheType != CacheSimple {
 		return TimeDistanceMatrix{}, errors.Errorf("cache type %s is not supported", cacheType)
 	}
@@ -54,18 +57,41 @@ func (c *Client) MatrixByCoordinates(ctx context.Context, cacheType string, coor
 
 	res, err := c.doJSON(ctx, http.MethodPost, matrixURL, request)
 	if err != nil {
-		return TimeDistanceMatrix{}, err
+		slog.Error("error in matrix request", "err", err)
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return TimeDistanceMatrix{}, errors.WithStack(err)
+		slog.Error(fmt.Sprintf("error reading response body: %v", err))
 	}
 
 	var resp TimeDistanceMatrix
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	if err = json.Unmarshal(body, &resp); err != nil {
-		return TimeDistanceMatrix{}, errors.WithStack(err)
+		slog.Error(fmt.Sprintf("error unmarshalling response body: %v", err))
+	}
+
+	if withFallback && err != nil {
+		// Fallback to Haversine distance if the response is empty
+		if len(resp.Entries) == 0 {
+			resp.Entries = make([]ct.TimeDistance, len(coordinates)*len(coordinates))
+			for i := range coordinates {
+				for j := range coordinates {
+					distance := coordinates[i].HaversineDistance(coordinates[j])
+					resp.Entries[i*len(coordinates)+j] = ct.TimeDistance{
+						DistanceM: ct.Distance(distance),
+						DurationS: int(math.Ceil(distance / 65.0 * 3600)),
+					}
+					resp.Coordinates = append(resp.Coordinates, coordinates[i])
+				}
+				resp.OriginAmount++
+				resp.DestinationAmount++
+			}
+		}
+	} else {
+		if err != nil {
+			return TimeDistanceMatrix{}, err
+		}
 	}
 
 	return resp, nil
@@ -110,4 +136,19 @@ func (c *Client) MatrixByLocations(ctx context.Context, cacheType string, locati
 	resp.Locations = locations
 
 	return resp, nil
+}
+
+func (t *TimeDistanceMatrix) SquaredMatrix() (distances [][]float64, durations [][]int) {
+	distances = make([][]float64, t.OriginAmount)
+	durations = make([][]int, t.OriginAmount)
+	for i := 0; i < t.OriginAmount; i++ {
+		distances[i] = make([]float64, t.DestinationAmount)
+		durations[i] = make([]int, t.DestinationAmount)
+		for j := 0; j < t.DestinationAmount; j++ {
+			distances[i][j] = float64(t.Entries[i*t.DestinationAmount+j].DistanceM.Meters()) / 1000.0
+			durations[i][j] = t.Entries[i*t.DestinationAmount+j].DurationS
+		}
+	}
+
+	return distances, durations
 }
