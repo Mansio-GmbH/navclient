@@ -3,10 +3,11 @@ package navclient
 import (
 	"context"
 	"encoding/json"
-	"github.com/mansio-gmbh/goapiutils/ct"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
+
+	"github.com/mansio-gmbh/goapiutils/ct"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -17,37 +18,44 @@ type locateRequest struct {
 	Locations []ct.Location `json:"locations"`
 }
 
+type LocationDetailed struct {
+	Location        ct.Location    `json:"location"`
+	Snapped         ct.Coordinates `json:"snapped"`
+	SnappedDistance ct.Distance    `json:"snappedDistance"`
+	Problem         string         `json:"problem"`
+	Index           int            `json:"-"`
+}
+
 type locateResponse struct {
-	Locations []ct.Location `json:"locations"`
-	Problems  []string      `json:"problems"`
+	Locations []LocationDetailed `json:"locations"`
 }
 
 // Locate finds the coordinates for the given locations.
 // The coordinates are applied to the locations.
-func (c *Client) Locate(ctx context.Context, locations []ct.Location) ([]ct.Location, []string, error) {
+func (c *Client) Locate(ctx context.Context, locations []ct.Location) ([]LocationDetailed, error) {
 	request := locateRequest{
 		Locations: locations,
 	}
 
 	res, err := c.doJSON(ctx, http.MethodPost, locateURL, request)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
+		return nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	var resp locateResponse
 	if err = json.Unmarshal(body, &resp); err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	return resp.Locations, resp.Problems, nil
+	return resp.Locations, nil
 }
