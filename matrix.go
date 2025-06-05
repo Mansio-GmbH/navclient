@@ -31,6 +31,11 @@ type matrixRequest struct {
 	CacheType   string           `json:"cache_type"`
 }
 
+type asymmetricMatrixRequest struct {
+	Origins      []ct.Coordinates `json:"origins"`
+	Destinations []ct.Coordinates `json:"destinations"`
+}
+
 type TimeDistanceMatrix struct {
 	Coordinates       []ct.Coordinates  `json:"coordinates,omitempty"`
 	Entries           []ct.TimeDistance `json:"entries"`
@@ -40,6 +45,14 @@ type TimeDistanceMatrix struct {
 
 type TimeDistanceLocationMatrix struct {
 	Locations         []ct.Location     `json:"locations"`
+	Entries           []ct.TimeDistance `json:"entries"`
+	OriginAmount      int               `json:"origin_amount,omitempty"`
+	DestinationAmount int               `json:"destination_amount,omitempty"`
+}
+
+type TimeDistanceAsymMatrix struct {
+	Origins           []ct.Coordinates  `json:"origins,omitempty"`
+	Destinations      []ct.Coordinates  `json:"destinations,omitempty"`
 	Entries           []ct.TimeDistance `json:"entries"`
 	OriginAmount      int               `json:"origin_amount,omitempty"`
 	DestinationAmount int               `json:"destination_amount,omitempty"`
@@ -151,4 +164,30 @@ func (t *TimeDistanceMatrix) SquaredMatrix() (distances [][]float64, durations [
 	}
 
 	return distances, durations
+}
+
+func (c *Client) AsymmetricMatrix(ctx context.Context, origins, destinations []ct.Coordinates) (TimeDistanceAsymMatrix, error) {
+	request := asymmetricMatrixRequest{
+		Origins:      origins,
+		Destinations: destinations,
+	}
+
+	res, err := c.doJSON(ctx, http.MethodPost, matrixURL+"/asymmetric", request)
+	if err != nil {
+		return TimeDistanceAsymMatrix{}, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return TimeDistanceAsymMatrix{}, errors.WithStack(err)
+	}
+
+	var resp TimeDistanceAsymMatrix
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	if err = json.Unmarshal(body, &resp); err != nil {
+		return TimeDistanceAsymMatrix{}, errors.WithStack(err)
+	}
+
+	return resp, nil
 }
