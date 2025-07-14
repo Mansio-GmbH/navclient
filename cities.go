@@ -1,0 +1,46 @@
+package navclient
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+
+	"github.com/pkg/errors"
+)
+
+const citiesURL = "api/cities"
+
+type citiesRequest struct {
+	Country    string `json:"country"`
+	Population int    `json:"min_population"`
+}
+
+func (c *Client) Cities(ctx context.Context, countryCode string, population int) ([]LocationDetailed, error) {
+	req := citiesRequest{
+		Country:    countryCode,
+		Population: population,
+	}
+
+	res, err := c.doJSON(ctx, http.MethodPost, citiesURL, req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var cities []LocationDetailed
+	if err = json.Unmarshal(body, &cities); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return cities, nil
+}
