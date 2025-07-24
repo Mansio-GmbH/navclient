@@ -135,14 +135,10 @@ func (c *Client) MatrixByLocations(ctx context.Context, cacheType string, locati
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return TimeDistanceLocationMatrix{}, errors.WithStack(err)
-	}
-
 	var resp TimeDistanceLocationMatrix
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
-	if err = json.Unmarshal(body, &resp); err != nil {
+	decoder := json.NewDecoder(res.Body)
+	if err = decoder.Decode(&resp); err != nil {
 		return TimeDistanceLocationMatrix{}, errors.WithStack(err)
 	}
 

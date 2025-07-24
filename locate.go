@@ -2,10 +2,9 @@ package navclient
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mansio-gmbh/goapiutils/ct"
 	"github.com/pkg/errors"
 )
@@ -47,13 +46,10 @@ func (c *Client) Locate(ctx context.Context, locations []ct.Location) ([]Locatio
 		return nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	var resp locateResponse
-	if err = json.Unmarshal(body, &resp); err != nil {
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := json.NewDecoder(res.Body)
+	if err = decoder.Decode(&resp); err != nil {
 		return nil, errors.WithStack(err)
 	}
 

@@ -2,10 +2,9 @@ package navclient
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 )
 
@@ -32,13 +31,10 @@ func (c *Client) Cities(ctx context.Context, countryCode string, population int)
 		return nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	var cities []LocationDetailed
-	if err = json.Unmarshal(body, &cities); err != nil {
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := json.NewDecoder(res.Body)
+	if err = decoder.Decode(&cities); err != nil {
 		return nil, errors.WithStack(err)
 	}
 

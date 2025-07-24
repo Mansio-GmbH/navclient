@@ -2,11 +2,11 @@ package navclient
 
 import (
 	"context"
-	"encoding/json"
+	"net/http"
+
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mansio-gmbh/goapiutils/ct"
 	"github.com/pkg/errors"
-	"io"
-	"net/http"
 )
 
 const (
@@ -37,13 +37,11 @@ func (c *Client) Route(ctx context.Context, coordinateChains LocationChains) (Ch
 		return nil, err
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
 
 	var resp routeResponse
-	if err = json.Unmarshal(body, &resp); err != nil {
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := json.NewDecoder(res.Body)
+	if err = decoder.Decode(&resp); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
