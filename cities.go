@@ -12,10 +12,15 @@ const citiesURL = "api/cities"
 
 type citiesRequest struct {
 	Country    string `json:"country"`
-	Population int    `json:"min_population"`
+	Population int    `json:"minPopulation"`
 }
 
-func (c *Client) Cities(ctx context.Context, countryCode string, population int) ([]LocationDetailed, error) {
+type City struct {
+	LocationDetailed
+	Population int `json:"population"`
+}
+
+func (c *Client) Cities(ctx context.Context, countryCode string, population int) ([]City, error) {
 	req := citiesRequest{
 		Country:    countryCode,
 		Population: population,
@@ -31,7 +36,7 @@ func (c *Client) Cities(ctx context.Context, countryCode string, population int)
 		return nil, errors.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
-	var cities []LocationDetailed
+	var cities []City
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := json.NewDecoder(res.Body)
 	if err = decoder.Decode(&cities); err != nil {
