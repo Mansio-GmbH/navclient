@@ -13,6 +13,7 @@ const citiesURL = "api/cities"
 type citiesRequest struct {
 	Country    string `json:"country"`
 	Population int    `json:"minPopulation"`
+	Reduce     bool   `json:"reduce"`
 }
 
 type City struct {
@@ -20,10 +21,11 @@ type City struct {
 	Population int `json:"population"`
 }
 
-func (c *Client) Cities(ctx context.Context, countryCode string, population int) ([]City, error) {
+func (c *Client) Cities(ctx context.Context, countryCode string, population int, reduce bool) ([]City, error) {
 	req := citiesRequest{
 		Country:    countryCode,
 		Population: population,
+		Reduce:     reduce,
 	}
 
 	res, err := c.doJSON(ctx, http.MethodPost, citiesURL, req)
