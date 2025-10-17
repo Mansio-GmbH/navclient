@@ -19,7 +19,7 @@ type geometryRequest struct {
 }
 
 type geometryResponse struct {
-	Routes ChainResults `json:"routes"`
+	Routes GeometryResults `json:"routes"`
 }
 
 type GeometryResults map[string]struct {
@@ -42,12 +42,12 @@ func (c *Client) Geometry(ctx context.Context, coordinateChains LocationChains, 
 	}
 	defer res.Body.Close()
 
-	var resp GeometryResults
+	var resp geometryResponse
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := json.NewDecoder(res.Body)
 	if err = decoder.Decode(&resp); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return resp, nil
+	return resp.Routes, nil
 }
