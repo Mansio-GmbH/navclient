@@ -18,8 +18,9 @@ type geometryRequest struct {
 	SimplificationDistance float64        `json:"simplification_distance,omitempty"`
 }
 
-type geometryResponse struct {
-	Routes GeometryResults `json:"routes"`
+type GeometryResponse struct {
+	Routes    GeometryResults `json:"routes"`
+	Countries []string        `json:"countries"`
 }
 
 type GeometryResults map[string]struct {
@@ -30,24 +31,24 @@ type GeometryResults map[string]struct {
 // Geometry calculates the time, distance and geometry for the given coordinate chains.
 // The coordinate chains are expected to be a slice of slices of coordinates.
 // The first coordinate of each chain is the start, the last the destination.
-func (c *Client) Geometry(ctx context.Context, coordinateChains LocationChains, distance float64) (GeometryResults, error) {
+func (c *Client) Geometry(ctx context.Context, coordinateChains LocationChains, distance float64) (GeometryResponse, error) {
 	request := geometryRequest{
 		Routes:                 coordinateChains,
 		SimplificationDistance: distance,
 	}
 
+	var resp GeometryResponse
 	res, err := c.doJSON(ctx, http.MethodPost, geometryURL, request)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
 	defer res.Body.Close()
 
-	var resp geometryResponse
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := json.NewDecoder(res.Body)
 	if err = decoder.Decode(&resp); err != nil {
-		return nil, errors.WithStack(err)
+		return resp, errors.WithStack(err)
 	}
 
-	return resp.Routes, nil
+	return resp, nil
 }
