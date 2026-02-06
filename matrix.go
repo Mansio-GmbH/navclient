@@ -2,9 +2,7 @@ package navclient
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"net/http"
 
@@ -59,47 +57,55 @@ type TimeDistanceAsymMatrix struct {
 
 // MatrixByCoordinates returns a TimeDistanceMatrix for the given coordinates.
 func (c *Client) MatrixByCoordinates(ctx context.Context, coordinates []ct.Coordinates, withFallback bool) (TimeDistanceMatrix, error) {
+	resp, err := c.matrixByCoordinates(ctx, coordinates)
+	if err != nil && !withFallback {
+		return TimeDistanceMatrix{}, err
+	}
+
+	if resp.Entries == nil {
+		resp.Entries = []ct.TimeDistance{}
+	}
+
+	neededLength := len(coordinates) * len(coordinates)
+	if withFallback && len(resp.Entries) != neededLength {
+		// Fallback to Haversine distance if the response is empty
+		resp.Entries = make([]ct.TimeDistance, len(coordinates)*len(coordinates))
+		for i := range coordinates {
+			for j := range coordinates {
+				distance := coordinates[i].HaversineDistance(coordinates[j])
+				resp.Entries[i*len(coordinates)+j] = ct.TimeDistance{
+					DistanceM: ct.Distance(distance),
+					DurationS: int(math.Ceil(distance / 65.0 * 3600)),
+				}
+				resp.Coordinates = append(resp.Coordinates, coordinates[i])
+			}
+			resp.OriginAmount++
+			resp.DestinationAmount++
+		}
+	}
+
+	return resp, nil
+}
+
+func (c *Client) matrixByCoordinates(ctx context.Context, coordinates []ct.Coordinates) (TimeDistanceMatrix, error) {
 	request := matrixRequest{
 		Coordinates: coordinates,
 	}
 
 	res, err := c.doJSON(ctx, http.MethodPost, matrixURL, request)
 	if err != nil {
-		slog.Error("error in matrix request", "err", err)
+		return TimeDistanceMatrix{}, err
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		slog.Error(fmt.Sprintf("error reading response body: %v", err))
+		return TimeDistanceMatrix{}, errors.WithStack(err)
 	}
 
 	var resp TimeDistanceMatrix
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	if err = json.Unmarshal(body, &resp); err != nil {
-		slog.Error(fmt.Sprintf("error unmarshalling response body: %v", err))
-	}
-
-	if withFallback && err != nil {
-		// Fallback to Haversine distance if the response is empty
-		if len(resp.Entries) == 0 {
-			resp.Entries = make([]ct.TimeDistance, len(coordinates)*len(coordinates))
-			for i := range coordinates {
-				for j := range coordinates {
-					distance := coordinates[i].HaversineDistance(coordinates[j])
-					resp.Entries[i*len(coordinates)+j] = ct.TimeDistance{
-						DistanceM: ct.Distance(distance),
-						DurationS: int(math.Ceil(distance / 65.0 * 3600)),
-					}
-					resp.Coordinates = append(resp.Coordinates, coordinates[i])
-				}
-				resp.OriginAmount++
-				resp.DestinationAmount++
-			}
-		}
-	} else {
-		if err != nil {
-			return TimeDistanceMatrix{}, err
-		}
+		return TimeDistanceMatrix{}, errors.WithStack(err)
 	}
 
 	return resp, nil
